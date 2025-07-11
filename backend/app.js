@@ -11,6 +11,14 @@ app.use(cors());
 app.use(bodyParser.json());
 
 const users = require("./data/users.json");
+const bestellungenPath = path.join(__dirname, "data", "bestellungen.json");
+
+// Hilfsfunktion zum Laden/Speichern
+const loadOrders = () => fs.existsSync(bestellungenPath)
+  ? JSON.parse(fs.readFileSync(bestellungenPath, "utf8"))
+  : [];
+const saveOrders = (orders) =>
+  fs.writeFileSync(bestellungenPath, JSON.stringify(orders, null, 2), "utf8");
 
 function authenticate(username, password) {
   return users.find(u => u.username === username && u.password === password);
@@ -25,7 +33,41 @@ app.post("/login", (req, res) => {
   }
 });
 
-// ✅ NEU: Artikelbezeichnung abrufen
+// 🔄 Bestellung speichern
+app.post("/order", (req, res) => {
+  const { username, kundennummer, adresse, artikel } = req.body;
+  const timestamp = Date.now();
+
+  const orders = loadOrders();
+  orders.push({ username, kundennummer, adresse, artikel, status: "offen", timestamp });
+  saveOrders(orders);
+
+  res.json({ success: true, timestamp });
+});
+
+// 🔍 Alle Bestellungen eines Nutzers
+app.get("/orders/:username", (req, res) => {
+  const username = req.params.username;
+  const orders = loadOrders().filter(o => o.username === username);
+  res.json(orders);
+});
+
+// ✅ Markiere Bestellung als abgeschlossen (z. B. nach CSV-Export)
+app.put("/order/:timestamp", (req, res) => {
+  const timestamp = parseInt(req.params.timestamp);
+  const orders = loadOrders();
+  const index = orders.findIndex(o => o.timestamp === timestamp);
+
+  if (index === -1) {
+    return res.status(404).json({ error: "Bestellung nicht gefunden" });
+  }
+
+  orders[index].status = "abgeschlossen";
+  saveOrders(orders);
+  res.json({ success: true });
+});
+
+// 🔁 Artikelbezeichnung
 app.get("/artikel/:sku", (req, res) => {
   const sku = req.params.sku.trim();
   const artikelPath = path.join(__dirname, "data", "artikel.csv");
@@ -51,7 +93,7 @@ app.get("/artikel/:sku", (req, res) => {
   }
 });
 
-// ✅ SUBMIT bleibt wie gehabt
+// ✉️ Senden + CSV + SFTP
 app.post("/submit", async (req, res) => {
   const { kundennummer, artikel } = req.body;
   const timestamp = Date.now();
@@ -87,4 +129,4 @@ app.post("/submit", async (req, res) => {
   }
 });
 
-app.listen(PORT, () => console.log("Server running on port " + PORT));
+app.listen(PORT, () => console.log(\"Server running on port \" + PORT));
