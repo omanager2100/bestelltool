@@ -25,17 +25,7 @@ app.post("/login", (req, res) => {
   }
 });
 
-app.post("/submit", async (req, res) => {
-  const { kundennummer, artikel } = req.body;
-  const timestamp = Date.now();
-  const filename = `bestellung_${kundennummer}_${timestamp}.csv`;
-  const filepath = path.join(__dirname, "data", filename);
-  const artikelData = fs.readFileSync(path.join(__dirname, "data", "artikel.csv"), "utf8");
-  const lookup = {};
-  artikelData.split("\n").forEach(line => {
-    const [nr, name] = line.split("|");
-    lookup[nr.trim()] = name.trim();
-  });
+// ✅ NEU: Artikelbezeichnung abrufen
 app.get("/artikel/:sku", (req, res) => {
   const sku = req.params.sku.trim();
   const artikelPath = path.join(__dirname, "data", "artikel.csv");
@@ -60,6 +50,19 @@ app.get("/artikel/:sku", (req, res) => {
     res.status(404).json({ error: "Artikel nicht gefunden" });
   }
 });
+
+// ✅ SUBMIT bleibt wie gehabt
+app.post("/submit", async (req, res) => {
+  const { kundennummer, artikel } = req.body;
+  const timestamp = Date.now();
+  const filename = `bestellung_${kundennummer}_${timestamp}.csv`;
+  const filepath = path.join(__dirname, "data", filename);
+  const artikelData = fs.readFileSync(path.join(__dirname, "data", "artikel.csv"), "utf8");
+  const lookup = {};
+  artikelData.split("\n").forEach(line => {
+    const [nr, name] = line.split("|");
+    lookup[nr.trim()] = name.trim();
+  });
 
   const content = artikel.map(item => {
     const bez = lookup[item.artikelnummer.trim()] || "";
