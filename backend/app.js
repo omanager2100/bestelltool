@@ -36,6 +36,30 @@ app.post("/submit", async (req, res) => {
     const [nr, name] = line.split("|");
     lookup[nr.trim()] = name.trim();
   });
+app.get("/artikel/:sku", (req, res) => {
+  const sku = req.params.sku.trim();
+  const artikelPath = path.join(__dirname, "data", "artikel.csv");
+
+  if (!fs.existsSync(artikelPath)) {
+    return res.status(500).json({ error: "Artikeldatei nicht gefunden" });
+  }
+
+  const artikelData = fs.readFileSync(artikelPath, "utf8");
+  const lookup = {};
+  artikelData.split("\n").forEach(line => {
+    const [nr, name] = line.split("|");
+    if (nr && name) {
+      lookup[nr.trim()] = name.trim();
+    }
+  });
+
+  const bezeichnung = lookup[sku];
+  if (bezeichnung) {
+    res.json({ bezeichnung });
+  } else {
+    res.status(404).json({ error: "Artikel nicht gefunden" });
+  }
+});
 
   const content = artikel.map(item => {
     const bez = lookup[item.artikelnummer.trim()] || "";
